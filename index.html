@@ -14,19 +14,14 @@
         .border-wrap::before { content: ""; position: absolute; width: 150%; height: 150%; background: conic-gradient(transparent, transparent, transparent, var(--primary)); animation: rotate 4s linear infinite; }
         @keyframes rotate { 100% { transform: rotate(360deg); } }
         .card { background: #0f172a; width: 360px; border-radius: 28px; padding: 32px; position: relative; z-index: 1; box-sizing: border-box; }
-        
-        /* Fixed CSS Syntax to remove red squiggles */
-        @keyframes steam {
-            0% { transform: translateY(0); opacity: 0; }
-            50% { opacity: 1; }
-            100% { transform: translateY(-10px); opacity: 0; }
-        }
         .amount-input { width: 100%; height: 60px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; font-size: 28px; font-weight: 700; text-align: center; color: white; background: rgba(0,0,0,0.3); outline: none; }
-        .amt-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px; border-radius: 10px; cursor: pointer; color: #94a3b8; font-size: 13px; }
-        .phone-input { width: 100%; padding: 14px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; font-size: 16px; margin-bottom: 15px; text-align: center; background: rgba(0,0,0,0.3); color: white; }
+        .amt-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px; border-radius: 10px; cursor: pointer; color: #94a3b8; font-size: 13px; transition: 0.2s; }
+        .amt-btn:hover { background: var(--primary); color: white; }
+        .phone-input { width: 100%; padding: 14px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; font-size: 16px; margin-bottom: 15px; text-align: center; background: rgba(0,0,0,0.3); color: white; outline: none; }
         .send-btn { width: 100%; background: var(--primary); color: white; border: none; padding: 16px; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 1000; }
-        .modal { background: #1e293b; padding: 30px; border-radius: 24px; text-align: center; width: 280px; border: 1px solid rgba(255,255,255,0.1); }
+        .modal { background: #1e293b; padding: 30px; border-radius: 24px; text-align: center; width: 300px; border: 1px solid rgba(255,255,255,0.1); }
+        .timer { font-size: 32px; font-weight: 800; color: var(--primary); margin: 15px 0; }
     </style>
 </head>
 <body>
@@ -41,20 +36,21 @@
                 <button type="button" class="amt-btn" onclick="setAmt(500)">500</button>
             </div>
             <input type="tel" id="phone" class="phone-input" placeholder="07XX XXX XXX">
-            <button class="send-btn" id="payBtn" onclick="initiate()">Send Coffee</button>
+            <button class="send-btn" onclick="initiate()">Send Coffee</button>
             <p id="statusMsg" class="text-slate-500 text-xs mt-4 text-center"></p>
         </div>
     </div>
 
     <div id="modalOverlay" class="modal-overlay">
         <div class="modal" id="modalContent">
-            <h3 class="text-white font-bold">Processing...</h3>
-            <p class="text-slate-400 text-sm mt-2">Check your phone for the M-PESA prompt.</p>
+            <h3 class="text-white font-bold text-lg">Processing Payment...</h3>
+            <div id="timer" class="timer">02:00</div>
+            <p class="text-slate-400 text-sm">Please check your phone for the M-PESA prompt and enter your PIN.</p>
         </div>
     </div>
 
     <script>
-        // Particles Background
+        // Background Animation
         const canvas = document.getElementById('bg-canvas');
         const ctx = canvas.getContext('2d');
         let particles = [];
@@ -64,19 +60,23 @@
 
         function setAmt(v) { document.getElementById('amount').value = v; }
 
+        let checkInterval;
+        let timeLeft = 120;
+
         async function initiate() {
             const amount = document.getElementById('amount').value;
             const phone = document.getElementById('phone').value;
             const status = document.getElementById('statusMsg');
             const overlay = document.getElementById('modalOverlay');
 
-            if(!amount || !phone) return alert("Please enter details");
+            if(!amount || !phone) return alert("Fill all fields");
             
             overlay.style.display = 'flex';
-            status.innerText = "Connecting to server...";
+            resetModalUI();
+            startTimer();
+            status.innerText = "Initiating STK Push...";
 
             try {
-                // FIXED URL PATH (/buy-coffee) TO PREVENT 404
                 const res = await fetch('https://buy-vinnie-a-coffee.onrender.com/buy-coffee', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -84,22 +84,59 @@
                 });
                 const data = await res.json();
                 
-                if(data.status) {
-                    status.innerText = "Check your phone!";
-                    // Success simulation (ideally verified via webhook)
-                    setTimeout(() => {
-                        confetti({ particleCount: 150, spread: 60 });
-                        document.getElementById('modalContent').innerHTML = `<h2 class="text-green-500 font-bold">Sent!</h2><p class="text-white text-sm">Thanks for the coffee!</p><button onclick="location.reload()" class="mt-4 amt-btn">Done</button>`;
-                    }, 8000);
+                if(data.status && data.data.reference) {
+                    // Start Polling
+                    const reference = data.data.reference;
+                    checkInterval = setInterval(() => verifyPayment(reference), 5000);
                 } else {
-                    status.innerText = "Error: " + data.message;
-                    overlay.style.display = 'none';
-                    alert(data.message);
+                    showError(data.message || "Request failed");
                 }
             } catch (e) {
-                status.innerText = "Server Error. Try again.";
-                overlay.style.display = 'none';
+                showError("Server Error");
             }
+        }
+
+        async function verifyPayment(ref) {
+            try {
+                const res = await fetch(`https://buy-vinnie-a-coffee.onrender.com/verify/${ref}`);
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    clearInterval(checkInterval);
+                    showSuccess();
+                } else if (data.status === 'failed') {
+                    clearInterval(checkInterval);
+                    // Handle specific errors from Paystack gateway
+                    let msg = data.message;
+                    if (msg.includes("PIN")) msg = "Invalid PIN. Try again.";
+                    if (msg.includes("balance")) msg = "Insufficient M-PESA balance.";
+                    showError(msg);
+                }
+            } catch (e) { console.error("Verify Error"); }
+        }
+
+        function startTimer() {
+            timeLeft = 120;
+            const t = setInterval(() => {
+                timeLeft--;
+                const m = Math.floor(timeLeft/60), s = timeLeft%60;
+                const timerEl = document.getElementById('timer');
+                if(timerEl) timerEl.innerText = `${m}:${s<10?'0':''}${s}`;
+                if(timeLeft <= 0 || !checkInterval) { clearInterval(t); if(timeLeft<=0) showError("Timed out"); }
+            }, 1000);
+        }
+
+        function showSuccess() {
+            confetti({ particleCount: 150, spread: 60 });
+            document.getElementById('modalContent').innerHTML = `<h2 class="text-green-500 font-bold text-2xl">Sent!</h2><p class="text-white mt-2">Vinnie is caffeinated.</p><button onclick="location.reload()" class="mt-6 amt-btn w-full">Done</button>`;
+        }
+
+        function showError(msg) {
+            document.getElementById('modalContent').innerHTML = `<h2 class="text-red-500 font-bold text-2xl">Failed</h2><p class="text-white mt-2">${msg}</p><button onclick="location.reload()" class="mt-6 amt-btn w-full">Try Again</button>`;
+        }
+
+        function resetModalUI() {
+            document.getElementById('modalContent').innerHTML = `<h3 class="text-white font-bold">Processing Payment...</h3><div id="timer" class="timer">02:00</div><p class="text-slate-400 text-sm">Enter PIN on your phone to complete.</p>`;
         }
     </script>
 </body>
