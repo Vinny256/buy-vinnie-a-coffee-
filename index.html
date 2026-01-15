@@ -14,22 +14,21 @@
         .border-wrap::before { content: ""; position: absolute; width: 150%; height: 150%; background: conic-gradient(transparent, transparent, transparent, var(--primary)); animation: rotate 4s linear infinite; }
         @keyframes rotate { 100% { transform: rotate(360deg); } }
         .card { background: #0f172a; width: 360px; border-radius: 28px; padding: 32px; position: relative; z-index: 1; box-sizing: border-box; }
-        .amount-input { width: 100%; height: 60px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; font-size: 28px; font-weight: 700; text-align: center; color: white; background: rgba(0,0,0,0.3); outline: none; transition: 0.3s; }
-        .amount-input:focus { border-color: var(--primary); box-shadow: 0 0 15px rgba(249, 115, 22, 0.2); }
-        .amt-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px; border-radius: 10px; cursor: pointer; color: #94a3b8; font-weight: 600; font-size: 13px; transition: 0.2s; }
+        .amount-input { width: 100%; height: 60px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; font-size: 28px; font-weight: 700; text-align: center; color: white; background: rgba(0,0,0,0.3); outline: none; }
+        .amt-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px; border-radius: 10px; cursor: pointer; color: #94a3b8; font-size: 13px; transition: 0.2s; }
         .amt-btn:hover { background: var(--primary); color: white; }
-        .phone-input { width: 100%; padding: 14px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; font-size: 16px; margin-bottom: 15px; text-align: center; background: rgba(0,0,0,0.3); color: white; outline: none; box-sizing: border-box; }
-        .send-btn { width: 100%; background: var(--primary); color: white; border: none; padding: 16px; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; transition: 0.3s; }
+        .phone-input { width: 100%; padding: 14px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; font-size: 16px; margin-bottom: 15px; text-align: center; background: rgba(0,0,0,0.3); color: white; outline: none; }
+        .send-btn { width: 100%; background: var(--primary); color: white; border: none; padding: 16px; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 1000; }
-        .modal { background: #1e293b; padding: 30px; border-radius: 24px; text-align: center; width: 320px; border: 1px solid rgba(255,255,255,0.1); }
-        .timer { font-size: 42px; font-weight: 900; color: var(--primary); margin: 20px 0; }
+        .modal { background: #1e293b; padding: 30px; border-radius: 24px; text-align: center; width: 300px; border: 1px solid rgba(255,255,255,0.1); }
+        .timer { font-size: 32px; font-weight: 800; color: var(--primary); margin: 15px 0; }
     </style>
 </head>
 <body>
     <canvas id="bg-canvas"></canvas>
     <div class="border-wrap">
         <div class="card">
-            <h2 class="text-xl font-bold text-center mb-6">Buy Vinnie Coffee ☕</h2>
+            <h2 class="text-xl font-bold text-center mb-4">Buy Vinnie Coffee ☕</h2>
             <input type="number" id="amount" class="amount-input" placeholder="Amount (KES)">
             <div class="grid grid-cols-3 gap-2 my-4">
                 <button type="button" class="amt-btn" onclick="setAmt(100)">100</button>
@@ -51,6 +50,7 @@
     </div>
 
     <script>
+        // Background Animation
         const canvas = document.getElementById('bg-canvas');
         const ctx = canvas.getContext('2d');
         let particles = [];
@@ -69,12 +69,12 @@
             const status = document.getElementById('statusMsg');
             const overlay = document.getElementById('modalOverlay');
 
-            if(!amount || !phone) return alert("Please enter details");
+            if(!amount || !phone) return alert("Fill all fields");
             
             overlay.style.display = 'flex';
             resetModalUI();
             startTimer();
-            status.innerText = "Connecting...";
+            status.innerText = "Initiating STK Push...";
 
             try {
                 const res = await fetch('https://buy-vinnie-a-coffee.onrender.com/buy-coffee', {
@@ -85,27 +85,34 @@
                 const data = await res.json();
                 
                 if(data.status && data.data.reference) {
+                    // Start Polling
                     const reference = data.data.reference;
                     checkInterval = setInterval(() => verifyPayment(reference), 5000);
                 } else {
-                    showError(data.message || "Request Failed");
+                    showError(data.message || "Request failed");
                 }
-            } catch (e) { showError("Server Error"); }
+            } catch (e) {
+                showError("Server Error");
+            }
         }
 
         async function verifyPayment(ref) {
             try {
                 const res = await fetch(`https://buy-vinnie-a-coffee.onrender.com/verify/${ref}`);
                 const data = await res.json();
-                if (data.status === 'success') { clearInterval(checkInterval); showSuccess(); }
-                else if (data.status === 'failed') {
+
+                if (data.status === 'success') {
                     clearInterval(checkInterval);
+                    showSuccess();
+                } else if (data.status === 'failed') {
+                    clearInterval(checkInterval);
+                    // Handle specific errors from Paystack gateway
                     let msg = data.message;
-                    if (msg.includes("PIN")) msg = "Incorrect PIN.";
-                    if (msg.includes("balance")) msg = "Insufficient funds.";
+                    if (msg.includes("PIN")) msg = "Invalid PIN. Try again.";
+                    if (msg.includes("balance")) msg = "Insufficient M-PESA balance.";
                     showError(msg);
                 }
-            } catch (e) { console.error("Polling error"); }
+            } catch (e) { console.error("Verify Error"); }
         }
 
         function startTimer() {
@@ -115,17 +122,17 @@
                 const m = Math.floor(timeLeft/60), s = timeLeft%60;
                 const timerEl = document.getElementById('timer');
                 if(timerEl) timerEl.innerText = `${m}:${s<10?'0':''}${s}`;
-                if(timeLeft <= 0 || !checkInterval) { clearInterval(t); if(timeLeft <= 0) showError("Timed Out"); }
+                if(timeLeft <= 0 || !checkInterval) { clearInterval(t); if(timeLeft<=0) showError("Timed out"); }
             }, 1000);
         }
 
         function showSuccess() {
             confetti({ particleCount: 150, spread: 60 });
-            document.getElementById('modalContent').innerHTML = `<h2 class="text-green-500 font-bold text-2xl">Sent!</h2><p class="text-white mt-2">Vinnie is caffeinated. Thanks!</p><button onclick="location.reload()" class="mt-6 amt-btn w-full py-3">Done</button>`;
+            document.getElementById('modalContent').innerHTML = `<h2 class="text-green-500 font-bold text-2xl">Sent!</h2><p class="text-white mt-2">Vinnie is caffeinated.</p><button onclick="location.reload()" class="mt-6 amt-btn w-full">Done</button>`;
         }
 
         function showError(msg) {
-            document.getElementById('modalContent').innerHTML = `<h2 class="text-red-500 font-bold text-2xl">Failed</h2><p class="text-white mt-2">${msg}</p><button onclick="location.reload()" class="mt-6 amt-btn w-full py-3">Try Again</button>`;
+            document.getElementById('modalContent').innerHTML = `<h2 class="text-red-500 font-bold text-2xl">Failed</h2><p class="text-white mt-2">${msg}</p><button onclick="location.reload()" class="mt-6 amt-btn w-full">Try Again</button>`;
         }
 
         function resetModalUI() {
