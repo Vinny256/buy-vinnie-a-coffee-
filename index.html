@@ -8,197 +8,98 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         :root { --primary: #f97316; --bg: #030712; }
-        
-        body, html { 
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            font-family: 'Inter', sans-serif; background: var(--bg);
-            color: #f8fafc; overflow: hidden;
-            display: flex; justify-content: center; align-items: center;
-        }
-
-        /* Moving Particles Background */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: #f8fafc; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         #bg-canvas { position: fixed; top: 0; left: 0; z-index: -1; }
-
-        /* Dynamic Shining Border Card */
-        .border-wrap {
-            position: relative;
-            padding: 2px;
-            border-radius: 30px;
-            overflow: hidden;
-            display: flex; justify-content: center; align-items: center;
-        }
-
-        .border-wrap::before {
-            content: "";
-            position: absolute; width: 150%; height: 150%;
-            background: conic-gradient(transparent, transparent, transparent, var(--primary));
-            animation: rotate 4s linear infinite;
-        }
-
+        .border-wrap { position: relative; padding: 2px; border-radius: 30px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        .border-wrap::before { content: ""; position: absolute; width: 150%; height: 150%; background: conic-gradient(transparent, transparent, transparent, var(--primary)); animation: rotate 4s linear infinite; }
         @keyframes rotate { 100% { transform: rotate(360deg); } }
-
-        .card { 
-            background: #0f172a; width: 360px; 
-            border-radius: 28px; padding: 32px;
-            position: relative; z-index: 1;
-            box-sizing: border-box;
-        }
-
-        /* Fixed CSS Animation Syntax */
+        .card { background: #0f172a; width: 360px; border-radius: 28px; padding: 32px; position: relative; z-index: 1; box-sizing: border-box; }
+        
+        /* Fixed CSS Syntax to remove red squiggles */
         @keyframes steam {
             0% { transform: translateY(0); opacity: 0; }
             50% { opacity: 1; }
             100% { transform: translateY(-10px); opacity: 0; }
         }
-        .steam-path { animation: steam 2s infinite ease-in-out; }
-
-        .amount-input { 
-            width: 100%; height: 60px;
-            border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
-            font-size: 28px; font-weight: 700; text-align: center; 
-            color: white; background: rgba(0,0,0,0.3); outline: none; transition: 0.3s;
-            box-sizing: border-box;
-        }
-        .amount-input:focus { border-color: var(--primary); box-shadow: 0 0 15px rgba(249, 115, 22, 0.2); }
-
-        .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 15px 0; }
-        .amt-btn { 
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); 
-            padding: 8px; border-radius: 10px; cursor: pointer; color: #94a3b8; 
-            font-weight: 600; font-size: 13px; transition: 0.2s;
-        }
-        .amt-btn:hover { background: var(--primary); color: white; }
-
-        .phone-input { 
-            width: 100%; padding: 14px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; 
-            font-size: 16px; margin-bottom: 15px; text-align: center; outline: none; 
-            background: rgba(0,0,0,0.3); color: white; box-sizing: border-box;
-        }
-
-        .send-btn { 
-            width: 100%; background: var(--primary); color: white; border: none; 
-            padding: 16px; border-radius: 14px; font-size: 16px; font-weight: 700; 
-            cursor: pointer; transition: 0.3s;
-        }
-
-        /* Modal Overlay */
+        .amount-input { width: 100%; height: 60px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; font-size: 28px; font-weight: 700; text-align: center; color: white; background: rgba(0,0,0,0.3); outline: none; }
+        .amt-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px; border-radius: 10px; cursor: pointer; color: #94a3b8; font-size: 13px; }
+        .phone-input { width: 100%; padding: 14px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; font-size: 16px; margin-bottom: 15px; text-align: center; background: rgba(0,0,0,0.3); color: white; }
+        .send-btn { width: 100%; background: var(--primary); color: white; border: none; padding: 16px; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 1000; }
         .modal { background: #1e293b; padding: 30px; border-radius: 24px; text-align: center; width: 280px; border: 1px solid rgba(255,255,255,0.1); }
-        .timer { font-size: 32px; font-weight: 800; color: var(--primary); margin: 15px 0; }
     </style>
 </head>
 <body>
-
     <canvas id="bg-canvas"></canvas>
-
     <div class="border-wrap">
         <div class="card">
             <h2 class="text-xl font-bold text-center mb-4">Buy Vinnie Coffee ☕</h2>
-            
-            <input type="number" id="amount" class="amount-input" placeholder="Enter amount (KES)">
-            
-            <div class="btn-grid">
+            <input type="number" id="amount" class="amount-input" placeholder="Amount (KES)">
+            <div class="grid grid-cols-3 gap-2 my-4">
                 <button type="button" class="amt-btn" onclick="setAmt(100)">100</button>
                 <button type="button" class="amt-btn" onclick="setAmt(200)">200</button>
                 <button type="button" class="amt-btn" onclick="setAmt(500)">500</button>
             </div>
-
             <input type="tel" id="phone" class="phone-input" placeholder="07XX XXX XXX">
-            <button class="send-btn" onclick="initiate()">Send Coffee</button>
-            
+            <button class="send-btn" id="payBtn" onclick="initiate()">Send Coffee</button>
             <p id="statusMsg" class="text-slate-500 text-xs mt-4 text-center"></p>
         </div>
     </div>
 
     <div id="modalOverlay" class="modal-overlay">
         <div class="modal" id="modalContent">
-            <h3 class="text-white font-bold">Prompting M-PESA...</h3>
-            <div id="timer" class="timer">02:00</div>
-            <p class="text-slate-400 text-sm">Enter your PIN on your phone to complete.</p>
+            <h3 class="text-white font-bold">Processing...</h3>
+            <p class="text-slate-400 text-sm mt-2">Check your phone for the M-PESA prompt.</p>
         </div>
     </div>
 
     <script>
-        // 1. Background Logic
+        // Particles Background
         const canvas = document.getElementById('bg-canvas');
         const ctx = canvas.getContext('2d');
         let particles = [];
-        function init() {
-            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-            for(let i=0; i<70; i++) particles.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, vx: (Math.random()-0.5)*0.3, vy: (Math.random()-0.5)*0.3 });
-        }
-        function animate() {
-            ctx.clearRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "rgba(255,255,255,0.15)";
-            particles.forEach(p => {
-                p.x+=p.vx; p.y+=p.vy;
-                if(p.x<0||p.x>canvas.width) p.vx*=-1; if(p.y<0||p.y>canvas.height) p.vy*=-1;
-                ctx.beginPath(); ctx.arc(p.x, p.y, 1.2, 0, Math.PI*2); ctx.fill();
-            });
-            requestAnimationFrame(animate);
-        }
+        function init() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; for(let i=0; i<70; i++) particles.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, vx: (Math.random()-0.5)*0.3, vy: (Math.random()-0.5)*0.3 }); }
+        function animate() { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle = "rgba(255,255,255,0.15)"; particles.forEach(p => { p.x+=p.vx; p.y+=p.vy; if(p.x<0||p.x>canvas.width) p.vx*=-1; if(p.y<0||p.y>canvas.height) p.vy*=-1; ctx.beginPath(); ctx.arc(p.x, p.y, 1.2, 0, Math.PI*2); ctx.fill(); }); requestAnimationFrame(animate); }
         init(); animate();
-
-        // 2. Formatting & Setters
-        document.getElementById('phone').addEventListener('input', (e) => {
-            if (e.target.value.startsWith('07')) e.target.value = '2547' + e.target.value.substring(2);
-            if (e.target.value.startsWith('01')) e.target.value = '2541' + e.target.value.substring(2);
-        });
 
         function setAmt(v) { document.getElementById('amount').value = v; }
 
-        // 3. Main Logic
         async function initiate() {
             const amount = document.getElementById('amount').value;
             const phone = document.getElementById('phone').value;
             const status = document.getElementById('statusMsg');
             const overlay = document.getElementById('modalOverlay');
 
-            if(!amount || phone.length < 10) return alert("Please enter valid details");
-
+            if(!amount || !phone) return alert("Please enter details");
+            
             overlay.style.display = 'flex';
-            status.innerText = "Triggering STK Push...";
-            startTimer();
+            status.innerText = "Connecting to server...";
 
             try {
-                // Fixed URL Path to prevent 404
+                // FIXED URL PATH (/buy-coffee) TO PREVENT 404
                 const res = await fetch('https://buy-vinnie-a-coffee.onrender.com/buy-coffee', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ amount, phone })
                 });
-                
                 const data = await res.json();
+                
                 if(data.status) {
-                    // Success is usually verified via Webhook, but we simulate it for UI feel
-                    setTimeout(showSuccess, 10000); 
+                    status.innerText = "Check your phone!";
+                    // Success simulation (ideally verified via webhook)
+                    setTimeout(() => {
+                        confetti({ particleCount: 150, spread: 60 });
+                        document.getElementById('modalContent').innerHTML = `<h2 class="text-green-500 font-bold">Sent!</h2><p class="text-white text-sm">Thanks for the coffee!</p><button onclick="location.reload()" class="mt-4 amt-btn">Done</button>`;
+                    }, 8000);
                 } else {
-                    showError(data.message);
+                    status.innerText = "Error: " + data.message;
+                    overlay.style.display = 'none';
+                    alert(data.message);
                 }
             } catch (e) {
-                showError("Server Error. Check your internet connection.");
+                status.innerText = "Server Error. Try again.";
+                overlay.style.display = 'none';
             }
-        }
-
-        let timeLeft = 120;
-        function startTimer() {
-            timeLeft = 120;
-            const t = setInterval(() => {
-                timeLeft--;
-                let m = Math.floor(timeLeft/60), s = timeLeft%60;
-                const timerEl = document.getElementById('timer');
-                if(timerEl) timerEl.innerText = `${m}:${s<10?'0':''}${s}`;
-                if(timeLeft<=0) { clearInterval(t); showError("Transaction Timeout"); }
-            }, 1000);
-        }
-
-        function showSuccess() {
-            confetti({ particleCount: 150, spread: 60 });
-            document.getElementById('modalContent').innerHTML = `<h2 class="text-green-500 font-bold text-xl">Sent!</h2><p class="text-white mt-2">Vinnie is caffeinated.</p><button onclick="location.reload()" class="amt-btn mt-4">Done</button>`;
-        }
-
-        function showError(msg) {
-            document.getElementById('modalContent').innerHTML = `<h2 class="text-red-500 font-bold text-xl">Failed</h2><p class="text-white mt-2">${msg}</p><button onclick="location.reload()" class="amt-btn mt-4">Try Again</button>`;
         }
     </script>
 </body>
